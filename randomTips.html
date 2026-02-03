@@ -25,11 +25,17 @@
 
 <div class="w-full max-w-md bg-white rounded-xl card-shadow overflow-hidden text-center relative z-10 py-8 px-6 space-y-6 animate-fadeIn">
     <h1 class="text-2xl md:text-3xl font-bold text-gray-800">随机语录查看器</h1>
-    
+
     <!-- 显示区 -->
     <div id="quoteDisplay"
          class="py-6 px-4 my-4 mx-auto w-full min-h-[120px] flex items-center justify-center border-l-4 border-blue-500 bg-blue-50 rounded-lg shadow-inner text-lg italic text-gray-700 break-all">
         加载中...
+    </div>
+
+    <!-- 显示隐藏区域 -->
+    <div>
+        <div id="hintText" style="display: none"></div>
+        <button id="btnShow" onclick="onShowHint()">显示</button>
     </div>
 
     <!-- 控制按钮组 -->
@@ -38,15 +44,24 @@
                 class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-5 rounded-full focus:outline-none shadow-md transition duration-300 flex items-center">
             <i class="fas fa-arrow-left mr-2"></i> 上一条
         </button>
-        
+
         <button onclick="randomShow()"
                 class="bg-purple-500 hover:bg-purple-600 text-white py-2 px-5 rounded-full focus:outline-none shadow-md transition duration-300 flex items-center">
             随机切换 <i class="fas fa-random ml-2"></i>
         </button>
-        
+
         <button onclick="showNext()"
                 class="bg-green-500 hover:bg-green-600 text-white py-2 px-5 rounded-full focus:outline-none shadow-md transition duration-300 flex items-center">
             下一条 <i class="fas fa-arrow-right ml-2"></i>
+        </button>
+    </div>
+
+    <!-- 状态切换 -->
+    <div style="display: flex; justify-content: center">
+        <button id="btnStatus"
+            class="bg-red-500 hover:bg-red-600 text-white py-2 px-5 rounded-full focus:outline-none shadow-md transition duration-300 flex items-center"
+            onclick="onChangeHintStatus()">
+            保持当前提示状态
         </button>
     </div>
 
@@ -54,67 +69,251 @@
 </div>
 
 <script>
+let isAlwaysHint = true;
+
 // 示例字符串数组
 const quotes = [
-    "你确定你能按时完成你的工作吗？",
-    "你有孩子吗？",
-    "你介意给我你的微信账号吗？",
-    "你今晚想吃匹萨饼吗？",
-    "请问你知道哪里有一位好医生吗？",
-    "我们不应该早点预定机票吗？",
-    "你是否曾经有遇过危险的情况?",
-    "那，你和我明天一起攻读晚餐怎么样?",
-    "为何我总是得付账?",
-    "大约需要多长的时间才能抵达到机场呢?",
-    "你多常去看一次牙医?",
-    "你的朋友怎么了?",
-    "你最喜欢的歌是什么?",
-    "为什么不在网上购买呢? 或是 你为什么不要再网上购买呢?",
-    "你想要喝点什么吗?",
-    "据我所知，她不喜欢他.",
-    "就你知道的，我真的很讨厌苦瓜.",
-    "相比起苦瓜，就连西兰花都比较好吃。",
-    "就我所知，他可能在火星上。",
-    "我敢打赌今天会下雨。",
-    "我迫不及待要拿到我的薪水.",
-    "在我看来，现在是买房子的好时机.",
-    "我刚刚才意识到，我从没有确定过我们的约会.",
-    "我想要早点离开.	我想要你早点离开.",
-    "我讨厌这么说，但是'蓝色'不是合适你的颜色.",
-    "我不知道地铁在哪里。",
-    "我必须在星期五之前找到一间新公寓.",
-    "如果你仔细想想，金钱不是生活中所有的一切。",
-    "我会让你知道一旦我今天有空的时候。",
-    "我恐怕他现在太忙了。",
-    "我很期待春节长假。",
-    "我很对不起，但是我不能和你一起吃晚餐。",
-    "我正在考虑为她订购一个生日蛋糕。",
-    "我很遗憾她摔断了腿。",
-    "不是因为他懒散，而是因为他不在乎。",
-    "我都在一整天里，担心着她。",
-    "我宁愿去参观夏威夷也不愿去洛杉矶。",
-    "让我知道你是否明天有空。or 让我知道你明天何时有空。",
-    "难怪你的英语这么好!",
-    "无意冒犯，但是你的发音需要改进。",
-    "一旦你开始吸烟，就很难停下来。",
-    "说到爱情，你打算什么时候结婚？",
-    "多亏了我的老板，我才能得到一份不错的年终奖金.",
-    "谢谢你上周帮我搬家，我知道这带给你很多不便。",
-    "你的钱越多，你的问题就越多。",
-    "没有什么比学习中文更困难了。",
-    "我最爱的莫过于坐在沙滩上看书了。",
-    "说实话，我真的不是很喜欢看恐怖电影。",
-    "我们最好在晚上10点之前离开，否则地铁将被关闭了。",
-    "我们不妨坐出租车去把，没有人想在雨中骑自行车。",
+  {
+    text: "你确定你能按时完成你的工作吗？",
+    hint: "Are you sure you can finish your work on time?"
+  },
+  {
+    text: "你有孩子吗？",
+    hint: "Do you have any children?"
+  },
+  {
+    text: "你介意给我你的微信账号吗？",
+    hint: "Do you mind giving me your Wechat ID?"
+  },
+  {
+    text: "你今晚想吃匹萨饼吗？",
+    hint: "Do you feel like pizza tonight?"
+  },
+  {
+    text: "请问你知道哪里有一位好医生吗？",
+    hint: "Do you know a good doctor?"
+  },
+  {
+    text: "我们不应该早点预定机票吗？",
+    hint: "Shouldn't we book our tickets early?"
+  },
+  {
+    text: "你是否曾经有遇过危险的情况?",
+    hint: 'Have you ever been in a dangerous situation?'
+  },
+  {
+    text: "那，你和我明天一起共度晚餐怎么样?",
+    hint: 'How about you and I get dinner tomorrow?'
+  },
+  {
+    text: "为何我总是得付账?",
+    hint: 'How come I always have to pay the bill?'
+  },
+  {
+    text: "大约需要多长的时间才能抵达到机场呢?",
+    hint: "How long does it take to go to the airport?"
+  },
+  {
+    text: "你多常去看一次牙医?",
+    hint: "How often do you go to the dentist?"
+  },
+  {
+    text: "你的朋友怎么了?",
+    hint: "What's the matter with your friend?"
+  },
+  {
+    text: "你最喜欢的歌是什么?",
+    hint: "What's your favorite song?"
+  },
+  {
+    text: "为什么不在网上购买呢? 或是 你为什么不要再网上购买呢?",
+    hint: "Why not buy it online? Or Why dont't you buy it online？"
+  },
+  {
+    text: "你想要喝点什么吗?",
+    hint: "Would you like something to drink?"
+  },
+  {
+    text: "据我所知，她不喜欢他.",
+    hint: "As far as I know,she doesn't like him."
+  },
+  {
+    text: "就你知道的，我真的很讨厌苦瓜.",
+    hint: "As you know,I really hate bitter melon."
+  },
+  {
+    text: "相比起苦瓜，就连西兰花都比较好吃。",
+    hint: "Compared to bitter melon,even broccoli tastes good."
+  },
+  {
+    text: "就我所知，他可能在火星上。",
+    hint: "For all I know,he could be on Mars."
+  },
+  {
+    text: "我敢打赌今天会下雨。",
+    hint: "I bet it's going to rain today."
+  },
+  {
+    text: "我迫不及待要拿到我的薪水.",
+    hint: "I can't wait to get my paycheck."
+  },
+  {
+    text: "在我看来，现在是买房子的好时机.",
+    hint: "It seems to me now is a good time to buy a house."
+  },
+  {
+    text: "我刚刚才意识到，我从没有确定过我们的约会.",
+    hint: "I just realized that I never confirmed our appointment."
+  },
+  {
+    text: "我想要早点离开.	我想要你早点离开.",
+    hint: "I'd like to leave soon. / I'd like you to leave soon."
+  },
+  {
+    text: "我讨厌这么说，但是'蓝色'不是合适你的颜色.",
+    hint: "I hate to say this but 'blue' is not a good color on you."
+  },
+  {
+    text: "我不知道地铁在哪里。",
+    hint: "I have no idea where the subway is."
+  },
+  {
+    text: "我必须在星期五之前找到一间新公寓.",
+    hint: "I have got to find a new apartment by friday."
+  },
+  {
+    text: "如果你仔细想想，金钱不是生活中所有的一切。",
+    hint: "If you think about it,money isn't everything in life."
+  },
+  {
+    text: "我会让你知道一旦我今天有空的时候。",
+    hint: "I'll let you know when I'm free today."
+  },
+  {
+    text: "我恐怕他现在太忙了。",
+    hint: "I'm afraid he's too busy right now."
+  },
+  {
+    text: "我很期待春节长假。",
+    hint: "I'm looking forward to the Spring Festival holiday."
+  },
+  {
+    text: "我很对不起，但是我不能和你一起吃晚餐。",
+    hint: "I'm sorry but I can't join you for dinner."
+  },
+  {
+    text: "我正在考虑为她订购一个生日蛋糕。",
+    hint: "I'm thinking about ordering a birthday cake for her."
+  },
+  {
+    text: "我很遗憾她摔断了腿。",
+    hint: "It's too bad that he broke his leg."
+  },
+  {
+    text: "不是因为他懒散，而是因为他不在乎。",
+    hint: "It's not that he's lazy,it's that he doesn't care."
+  },
+  {
+    text: "我都在一整天里，担心着她。",
+    hint: "I have been worried about her all day."
+  },
+  {
+    text: "我宁愿去参观夏威夷也不愿去洛杉矶。",
+    hint: "I would rather visit Hawaii than Los Angeles."
+  },
+  {
+    text: "让我知道你是否明天有空。or 让我知道你明天何时有空。",
+    hint: "Let me know if you're free tomorrow. / Let me know when you're free tomorrow."
+  },
+  {
+    text: "难怪你的英语这么好!",
+    hint: "No wonder your English is so good!"
+  },
+  {
+    text: "无意冒犯，但是你的发音需要改进。",
+    hint: "No offense,but your pronunciation needs improvement."
+  },
+  {
+    text: "一旦你开始吸烟，就很难停下来。",
+    hint: "Once you start smoking,it's hard to stop."
+  },
+  {
+    text: "说到爱情，你打算什么时候结婚？",
+    hint: "Speaking of love,when are you going to get married?"
+  },
+  {
+    text: "多亏了我的老板，我才能得到一份不错的年终奖金.",
+    hint: "Thanks to my boss,I'll get a nice year-end bonus."
+  },
+  {
+    text: "谢谢你上周帮我搬家，我知道这带给你很多不便。",
+    hint: "Thank you for helping me move last week,I know it was not convenient for you."
+  },
+  {
+    text: "你的钱越多，你的问题就越多。",
+    hint: "The more money you have,the more problems you'll have."
+  },
+  {
+    text: "没有什么比学习中文更困难了。",
+    hint: "There is nothing as difficult as learning Chinese."
+  },
+  {
+    text: "我最爱的莫过于坐在沙滩上看书了。",
+    hint: "There is nothing I love more than sitting on a beach and reading a book."
+  },
+  {
+    text: "说实话，我真的不是很喜欢看恐怖电影。",
+    hint: "To be honest,I don't really like watching horror movies."
+  },
+  {
+    text: "我们最好在晚上10点之前离开，否则地铁将被关闭了。",
+    hint: "We'd better leave before 10pm,otherwise the subway will be closed."
+  },
+  {
+    text: "我们不妨坐出租车去把，没有人想在雨中骑自行车。",
+    hint: "We might as well take a taxi,No one wants to bike in the rain."
+  }
 ];
 
 let currentIndex = Math.floor(Math.random() * quotes.length); // 初始索引设为随机数
+
+function onShowHint(isHideHint) {
+  const btnShow = document.getElementById("btnShow");
+  const hintTextElement = document.getElementById("hintText");
+  if (isHideHint) {
+    btnShow.innerText = "隐藏";
+  }
+  if (btnShow.innerText === "显示") {
+    btnShow.innerText = "隐藏";
+    hintTextElement.style.display = "block";
+  } else {
+    btnShow.innerText = "显示";
+    hintTextElement.style.display = "none";
+  }
+}
+
+function onChangeHintStatus() {
+  const btnStatus = document.getElementById("btnStatus");
+  if (btnStatus.innerText === "保持当前提示状态") {
+    btnStatus.innerText = "总是隐藏提示";
+    isAlwaysHint = false;
+  } else {
+    btnStatus.innerText = "保持当前提示状态";
+    isAlwaysHint = true;
+  }
+}
 
 function updateQuote(index) {
     const displayElement = document.getElementById("quoteDisplay");
     if (!displayElement) return;
 
-    displayElement.textContent = quotes[index];
+    displayElement.textContent = quotes[index].text;
+    const hintTextElement = document.getElementById("hintText");
+    if (!isAlwaysHint) {
+      onShowHint(true);
+    }
+    if (!hintTextElement) return;
+    hintTextElement.innerText = quotes[index].hint;
 }
 
 function randomShow() {
