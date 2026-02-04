@@ -65,11 +65,23 @@
         </button>
     </div>
 
+    <!-- 显示切换 -->
+    <div class="mt" style="display: flex; justify-content: center">
+        <button id="btnShowExchange"
+                class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-full focus:outline-none shadow-md transition duration-300 flex items-center"
+                onclick="onShowExchange()">
+            显示切换
+        </button>
+    </div>
+
     <footer class="mt-8 text-sm text-gray-500">&copy; 2026 随机语录工具</footer>
 </div>
 
 <script>
+// 是否总是显示提示
 let isAlwaysHint = true;
+// 是否主要内容显示Text
+let isMainText = true;
 
 // 示例字符串数组
 const quotes = [
@@ -303,17 +315,22 @@ function onChangeHintStatus() {
   }
 }
 
+function onShowExchange() {
+  isMainText = !isMainText;
+  updateQuote(currentIndex);
+}
+
 function updateQuote(index) {
     const displayElement = document.getElementById("quoteDisplay");
     if (!displayElement) return;
 
-    displayElement.textContent = quotes[index].text;
+    displayElement.textContent = isMainText ? quotes[index].text : quotes[index].hint;
     const hintTextElement = document.getElementById("hintText");
     if (!isAlwaysHint) {
       onShowHint(true);
     }
     if (!hintTextElement) return;
-    hintTextElement.innerText = quotes[index].hint;
+    hintTextElement.innerText = isMainText ? quotes[index].hint : quotes[index].text;
 }
 
 function randomShow() {
