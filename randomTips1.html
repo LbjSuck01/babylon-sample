@@ -1,0 +1,282 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>随机字符串展示器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(to right, #ece9e6, #ffffff);
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        button:hover i {
+            transform: scale(1.1);
+            transition: all 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+<div class="w-full max-w-md bg-white rounded-xl card-shadow overflow-hidden text-center relative z-10 py-8 px-6 space-y-6 animate-fadeIn">
+    <h1 class="text-2xl md:text-3xl font-bold text-gray-800">随机语录查看器</h1>
+
+    <!-- 显示区 -->
+    <div id="quoteDisplay"
+         class="py-6 px-4 my-4 mx-auto w-full min-h-[120px] flex items-center justify-center border-l-4 border-blue-500 bg-blue-50 rounded-lg shadow-inner text-lg italic text-gray-700 break-all">
+        加载中...
+    </div>
+
+    <!-- 显示隐藏区域 -->
+    <div>
+        <div id="hintText" style="display: none"></div>
+        <button id="btnShow" onclick="onShowHint()">显示</button>
+    </div>
+
+    <!-- 控制按钮组 -->
+    <div class="flex justify-between mt-6 gap-x-4">
+        <button onclick="showPrevious()"
+                class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-5 rounded-full focus:outline-none shadow-md transition duration-300 flex items-center">
+            <i class="fas fa-arrow-left mr-2"></i> 上一条
+        </button>
+
+        <button onclick="randomShow()"
+                class="bg-purple-500 hover:bg-purple-600 text-white py-2 px-5 rounded-full focus:outline-none shadow-md transition duration-300 flex items-center">
+            随机切换 <i class="fas fa-random ml-2"></i>
+        </button>
+
+        <button onclick="showNext()"
+                class="bg-green-500 hover:bg-green-600 text-white py-2 px-5 rounded-full focus:outline-none shadow-md transition duration-300 flex items-center">
+            下一条 <i class="fas fa-arrow-right ml-2"></i>
+        </button>
+    </div>
+
+    <!-- 状态切换 -->
+    <div style="display: flex; justify-content: center">
+        <button id="btnStatus"
+            class="bg-red-500 hover:bg-red-600 text-white py-2 px-5 rounded-full focus:outline-none shadow-md transition duration-300 flex items-center"
+            onclick="onChangeHintStatus()">
+            保持当前提示状态
+        </button>
+    </div>
+
+    <!-- 显示切换 -->
+    <div class="mt" style="display: flex; justify-content: center">
+        <button id="btnShowExchange"
+                class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-full focus:outline-none shadow-md transition duration-300 flex items-center"
+                onclick="onShowExchange()">
+            显示切换
+        </button>
+    </div>
+
+    <footer class="mt-8 text-sm text-gray-500">&copy; 2026 随机语录工具</footer>
+</div>
+
+<script>
+// 是否总是显示提示
+let isAlwaysHint = true;
+// 是否主要内容显示Text
+let isMainText = true;
+
+// 示例字符串数组
+const quotes = [
+  {
+    text: "非常感谢你送给我的花。  非常感谢你抽出时间来。",
+    hint: "Thanks so much for flowers.  Thanks so much for your time."
+  },
+  {
+    text: "我真的很感谢你的帮助。  我真的很感谢你为我烹饪中国菜。",
+    hint: "I really appreciate your help.   I really appreciate you cooking Chinese food for me."
+  },
+  {
+    text: "不好意思，请问现在几点了？    不好意思，请问火车站在哪里？",
+    hint: "Excuse me,what time is it?   Excuse me,where is the train station?"
+  },
+  {
+    text: "对不起，我迟到了。    对不起，我忘了给你打电话。",
+    hint: "I'm sorry I'm late.  I'm sorry I forgot to call you."
+  },
+  {
+    text: "你如何看待美国食物?   你如何看待苹果手机和安卓手机的对比？",
+    hint: "What do you think about American food?   Whait do you think about Apple versus Android?"
+  },
+  {
+    text: "我们六点一起吃饭。听起来怎么样？ 我们去公园吧。听起来怎么样？",
+    hint: "Let's eat together at six.How does that sound?   Let's go to the park.How does that sound?"
+  },
+  {
+    text: "我们今晚去吃匹萨吧。这听起来很不错。   我们去看电影，好吗？ 这听起来不错。",
+    hint: "Let's get pizza tonight.That sounds great.  Shall we watch a movie?That sounds great."
+  },
+  {
+    text: "你需要什么东西吗？哦，算了吧。",
+    hint: "Do you need something?Oh never mind."
+  },
+  {
+    text: "你正在学习什么？我正在学习英语。",
+    hint: "What do you study?I'm learning English."
+  },
+  {
+    text: "你能帮我解答?对不起，我不了解。",
+    hint: "Can you help me with this math problem? I'm sorry,I don't understand."
+  },
+  {
+    text: "你可以再说一遍吗?",
+    hint: "Could you repeat that please?"
+  },
+  {
+    text: "你能说慢一点吗？",
+    hint: "Could you please talk slower?"
+  },
+  {
+    text: "谢谢，这对我有很大的帮助。",
+    hint: "Thank you,that helps a lot."
+  },
+  {
+    text: "Cracker是什么意思？",
+    hint: "What does cracker mean?"
+  },
+  {
+    text: "你怎么拼读这个单词？",
+    hint: "How do you spell that?"
+  },
+  {
+    text: "不需要拐弯抹角。你这是什么意思？",
+    hint: "No need to beat around the bush. What do you mean?"
+  },
+  {
+    text: "你好，我叫麦克。你叫什么名字？",
+    hint: "Hi,I'm Michael.What's your name?"
+  },
+  {
+    text: "你好，我叫麦克。很高兴见到你。",
+    hint: "Hi,I'm Michael.Nice to meet you."
+  },
+  {
+    text: "很高兴见到你。你从哪里来？   我来自美国。",
+    hint: "Nice to meet you.Where are you from? I'm from the USA."
+  },
+  {
+    text: "你作什么工作，麦克？   我做什么工作？ 我就是你的老师！",
+    hint: "What do you do,Michael?  What do I do?   I'm your teacher! "
+  },
+  {
+    text: "那么麦克，你喜欢在空闲的时间作些什么？  我喜欢自作视频",
+    hint: "So Mike,what do you like to do in your free time?    I like to make videos."
+  },
+  {
+    text: "很高兴见到你。你的电话号码是几号?",
+    hint: "It was nice to meet you.What's your phone number?"
+  },
+  {
+    text: "让我们保持联系吧。你有微信吗？",
+    hint: "Let's keep in touch.Do you have Wechat?"
+  },
+  {
+    text: "我过得还不错，那你呢？",
+    hint: "It's going pretty well,how about you?"
+  },
+  {
+    text: "你最近都在忙什么？",
+    hint: "What have you been up to?"
+  },
+  {
+    text: "我最近真的很忙。",
+    hint: "I've been really busy lately."
+  },
+  {
+    text: "你明天有什么计划吗?   你今年夏天有什么计划吗？",
+    hint: "Do you have any plans tomorrow?  Do you have any plans this summer?"
+  },
+  {
+    text: "我正要去跑步。  我正要开始上课。",
+    hint: "I'm just about to go running.    I'm just about to begin class."
+  },
+  {
+    text: "你喜欢冰淇淋吗？ 你喜欢旅行吗？ 我真的很喜欢旅行。",
+    hint: "Do you like ice cream?   Do you like travelling? I really like travelling."
+  },
+  {
+    text: "今天天气很好，你不觉得吗？    是的，今天的天气非常好。",
+    hint: "The weather is beautiful today,isn't it? Yes,today is very beautiful."
+  }
+];
+
+let currentIndex = Math.floor(Math.random() * quotes.length); // 初始索引设为随机数
+
+function onShowHint(isHideHint) {
+  const btnShow = document.getElementById("btnShow");
+  const hintTextElement = document.getElementById("hintText");
+  if (isHideHint) {
+    btnShow.innerText = "隐藏";
+  }
+  if (btnShow.innerText === "显示") {
+    btnShow.innerText = "隐藏";
+    hintTextElement.style.display = "block";
+  } else {
+    btnShow.innerText = "显示";
+    hintTextElement.style.display = "none";
+  }
+}
+
+function onChangeHintStatus() {
+  const btnStatus = document.getElementById("btnStatus");
+  if (btnStatus.innerText === "保持当前提示状态") {
+    btnStatus.innerText = "总是隐藏提示";
+    isAlwaysHint = false;
+  } else {
+    btnStatus.innerText = "保持当前提示状态";
+    isAlwaysHint = true;
+  }
+}
+
+function onShowExchange() {
+  isMainText = !isMainText;
+  updateQuote(currentIndex);
+}
+
+function updateQuote(index) {
+    const displayElement = document.getElementById("quoteDisplay");
+    if (!displayElement) return;
+
+    displayElement.textContent = isMainText ? quotes[index].text : quotes[index].hint;
+    const hintTextElement = document.getElementById("hintText");
+    if (!isAlwaysHint) {
+      onShowHint(true);
+    }
+    if (!hintTextElement) return;
+    hintTextElement.innerText = isMainText ? quotes[index].hint : quotes[index].text;
+}
+
+function randomShow() {
+    let newIndex;
+    do {
+        newIndex = Math.floor(Math.random() * quotes.length);
+    } while(newIndex === currentIndex && quotes.length > 1);
+
+    currentIndex = newIndex;
+    updateQuote(currentIndex);
+}
+
+function showPrevious() {
+    currentIndex = (currentIndex - 1 + quotes.length) % quotes.length;
+    updateQuote(currentIndex);
+}
+
+function showNext() {
+    currentIndex = (currentIndex + 1) % quotes.length;
+    updateQuote(currentIndex);
+}
+
+// 页面加载完成后初始化显示
+document.addEventListener('DOMContentLoaded', function() {
+    updateQuote(currentIndex);
+});
+</script>
+</body>
+</html>
