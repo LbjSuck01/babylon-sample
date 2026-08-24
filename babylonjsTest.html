@@ -1,0 +1,265 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Babylon.js 矢量基础演示</title>
+    <!-- 引入 TailwindCSS 用于快速样式 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Babylon.js 核心库 -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #renderCanvas { width: 100%; height: 100vh; touch-action: none; }
+        .ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 300px;
+            backdrop-filter: blur(5px);
+        }
+        .log-area {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #4a5568;
+            background: #f7fafc;
+            padding: 8px;
+            border-radius: 4px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 渲染画布 -->
+    <canvas id="renderCanvas"></canvas>
+
+    <!-- UI 控制面板 -->
+    <div class="ui-panel">
+        <h1 class="text-xl font-bold text-gray-800 mb-2">矢量运算演示</h1>
+        <p class="text-sm text-gray-600 mb-4">观察红色球体（位置）和绿色箭头（速度矢量）的变化。</p>
+        
+        <div class="space-y-2">
+            <button id="btn-add" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-200">
+                施加推力 (Add Velocity)
+            </button>
+            <button id="btn-reset" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-200">
+                重置位置
+            </button>
+        </div>
+
+        <div class="log-area" id="debug-log">
+            <div>等待操作...</div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 极简矢量类封装 (适配 Babylon.js 习惯) ---
+        // 注意：在实际 Babylon 开发中，直接使用 BABYLON.Vector3 即可。
+        // 这里为了演示“极简矢量类”的概念，我们封装一个轻量级助手，
+        // 但底层依然依赖 BABYLON.Vector3 以确保与引擎兼容。
+        
+        class SimpleVectorHelper {
+            constructor(x, y, z) {
+                this.vector = new BABYLON.Vector3(x, y, z);
+            }
+
+            // 获取原生 Babylon 向量
+            get() {
+                return this.vector;
+            }
+
+            // 加法: 返回新的 Helper 实例，不修改原值 (Immutable style)
+            add(otherVector) {
+                const result = this.vector.add(otherVector);
+                return new SimpleVectorHelper(result.x, result.y, result.z);
+            }
+
+            // 原地加法: 修改当前值 (Mutable style, 性能更好)
+            addInPlace(otherVector) {
+                this.vector.addInPlace(otherVector);
+                return this;
+            }
+
+            // 数乘
+            scale(scalar) {
+                const result = this.vector.scale(scalar);
+                return new SimpleVectorHelper(result.x, result.y, result.z);
+            }
+
+            // 打印格式化
+            toString() {
+                return `(${this.vector.x.toFixed(2)}, ${this.vector.y.toFixed(2)}, ${this.vector.z.toFixed(2)})`;
+            }
+        }
+
+        // --- 2. Babylon.js 场景初始化 ---
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        const debugLog = document.getElementById("debug-log");
+
+        const createScene = function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.95, 0.95, 0.95, 1);
+
+            // 相机
+            const camera = new BABYLON.ArcRotateCamera("camera", new BABYLON.Vector3(0, 5, -10), new BABYLON.Vector3(0, 0, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 50;
+
+            // 灯光
+            const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+            light.intensity = 0.7;
+
+            // 地面
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 20, height: 20 }, scene);
+            const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+            groundMat.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+            ground.material = groundMat;
+
+            // 网格辅助线
+            const grid = BABYLON.MeshBuilder.CreateGround("grid", { width: 20, height: 20 }, scene);
+            const gridMat = new BABYLON.StandardMaterial("gridMat", scene);
+            gridMat.wireframe = true;
+            gridMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+            grid.material = gridMat;
+            grid.position.y = 0.01; // 略微抬高避免 z-fighting
+
+            // --- 3. 创建演示对象 ---
+            
+            // 红色球体：代表物体位置
+            const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", { diameter: 1 }, scene);
+            const sphereMat = new BABYLON.StandardMaterial("sphereMat", scene);
+            sphereMat.diffuseColor = new BABYLON.Color3(1, 0.2, 0.2); // Red
+            sphere.material = sphereMat;
+            sphere.position = new BABYLON.Vector3(0, 0.5, 0);
+
+            // 绿色箭头：代表速度矢量/方向
+            // 使用 Cylinder 模拟箭头杆
+            const arrowHead = BABYLON.MeshBuilder.CreateCylinder("arrowHead", { height: 0.3, diameter: 0.4 }, scene);
+            const arrowBody = BABYLON.MeshBuilder.CreateCylinder("arrowBody", { height: 2, diameter: 0.1 }, scene);
+            
+            const arrowMat = new BABYLON.StandardMaterial("arrowMat", scene);
+            arrowMat.diffuseColor = new BABYLON.Color3(0.2, 0.8, 0.2); // Green
+            arrowHead.material = arrowMat;
+            arrowBody.material = arrowMat;
+
+            // 将箭头组合到一个父节点，方便整体移动和旋转
+            const arrowContainer = new BABYLON.TransformNode("arrowContainer", scene);
+            arrowHead.parent = arrowContainer;
+            arrowBody.parent = arrowContainer;
+            
+            // 调整箭头局部位置，使其指向 Z 轴正方向
+            arrowBody.position.z = 1; 
+            arrowHead.position.z = 2;
+            arrowHead.rotation.x = Math.PI / 2; // 旋转圆锥体使其尖端朝前
+
+            // 初始状态
+            let currentPos = new SimpleVectorHelper(0, 0.5, 0);
+            let currentVel = new SimpleVectorHelper(0, 0, 0); // 初始速度为0
+
+            // 更新箭头视觉表现
+            const updateArrowVisuals = () => {
+                // 箭头跟随球体
+                arrowContainer.position = currentPos.get();
+                
+                // 如果速度不为0，旋转箭头指向速度方向
+                const velVec = currentVel.get();
+                if (velVec.length() > 0.01) {
+                    // 计算朝向
+                    const target = currentPos.get().add(velVec);
+                    arrowContainer.lookAt(target);
+                    
+                    // 根据速度大小缩放箭头长度 (视觉反馈)
+                    const scale = Math.max(0.5, Math.min(velVec.length(), 3)); 
+                    arrowContainer.scaling = new BABYLON.Vector3(1, 1, scale);
+                } else {
+                    arrowContainer.scaling = new BABYLON.Vector3(0, 0, 0); // 速度为0时隐藏
+                }
+            };
+
+            // --- 4. 交互逻辑 ---
+
+            document.getElementById('btn-add').addEventListener('click', () => {
+                // 模拟施加一个随机方向的力 (速度增量)
+                const force = new BABYLON.Vector3(
+                    (Math.random() - 0.5) * 2, 
+                    0, 
+                    (Math.random() - 0.5) * 2 + 1 // 倾向于向前
+                );
+                
+                // 使用我们的 SimpleVectorHelper 进行运算
+                currentVel.addInPlace(force);
+                
+                // 限制最大速度
+                if (currentVel.get().length() > 5) {
+                    currentVel.get().normalize().scaleInPlace(5);
+                }
+
+                logMessage(`施加力: ${force.x.toFixed(1)}, ${force.z.toFixed(1)} | 新速度: ${currentVel.toString()}`);
+            });
+
+            document.getElementById('btn-reset').addEventListener('click', () => {
+                currentPos = new SimpleVectorHelper(0, 0.5, 0);
+                currentVel = new SimpleVectorHelper(0, 0, 0);
+                sphere.position = currentPos.get();
+                logMessage("已重置位置和速度");
+            });
+
+            const logMessage = (msg) => {
+                const div = document.createElement('div');
+                div.textContent = `> ${msg}`;
+                debugLog.prepend(div);
+                if (debugLog.children.length > 5) debugLog.lastChild.remove();
+            };
+
+            // --- 5. 渲染循环 ---
+            scene.registerBeforeRender(() => {
+                // 物理模拟步骤：位置 = 位置 + 速度 * deltaTime
+                // 假设固定时间步长简化演示，实际引擎应使用 engine.getDeltaTime()
+                const dt = 0.016; 
+                
+                if (currentVel.get().length() > 0.001) {
+                    // 计算位移增量
+                    const displacement = currentVel.scale(dt);
+                    
+                    // 更新位置
+                    currentPos.addInPlace(displacement.get());
+                    
+                    // 应用重力 (简单的 Y 轴减速，模拟摩擦或重力影响，防止飞太远)
+                    // 这里仅做简单阻尼演示
+                    currentVel.get().scaleInPlace(0.99); 
+
+                    // 同步到 Mesh
+                    sphere.position = currentPos.get();
+                    
+                    // 边界检查 (简单反弹)
+                    if (sphere.position.x > 9 || sphere.position.x < -9 || sphere.position.z > 9 || sphere.position.z < -9) {
+                        currentVel.get().scaleInPlace(-1); // 反向
+                    }
+                }
+
+                updateArrowVisuals();
+            });
+
+            return scene;
+        };
+
+        const scene = createScene();
+
+        engine.runRenderLoop(function () {
+            scene.render();
+        });
+
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
