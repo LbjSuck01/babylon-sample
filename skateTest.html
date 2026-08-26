@@ -194,12 +194,19 @@
 
             // --- 7. 渲染循环 (使用原生输入状态) ---
             scene.registerBeforeRender(() => {
+                // 安全检查：确保物理 impostor 存在
                 if (!deck.physicsImpostor || !deck.physicsImpostor.object) return;
 
                 const forceMultiplier = 15;
                 const turnSpeed = 0.2;
 
-                const forward = deck.getForwardRay().direction;
+                // 【修复点】：Mesh 没有 getForwardRay() 方法
+                // 正确做法：使用 getDirection 获取局部 Z 轴正向在世界空间的方向
+                // 注意：Babylon 中默认前方通常是 +Z 或 -Z，取决于模型朝向。
+                // 如果滑板向后跑，尝试改为 new BABYLON.Vector3(0, 0, -1)
+                const forward = deck.getDirection(new BABYLON.Vector3(0, 0, 1));
+                
+                // 确保力只作用在水平面上（忽略 Y 轴分量，防止滑板飞上天或钻地）
                 forward.y = 0; 
                 forward.normalize();
 
@@ -216,6 +223,7 @@
                 // 转向
                 if (inputState.left) {
                     const currentAngVel = deck.physicsImpostor.getAngularVelocity();
+                    // 围绕 Y 轴旋转
                     deck.physicsImpostor.setAngularVelocity(new BABYLON.Vector3(currentAngVel.x, turnSpeed, currentAngVel.z));
                 }
                 if (inputState.right) {
