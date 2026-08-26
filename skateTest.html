@@ -3,134 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Babylon.js Skateboard Physics Demo</title>
+    <title>Skateboard Physics Demo - Fixed</title>
     <style>
-        html, body {
-            overflow: hidden;
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        #renderCanvas {
-            width: 100%;
-            height: 100%;
-            touch-action: none;
-            outline: none;
-        }
+        html, body { overflow: hidden; width: 100%; height: 100%; margin: 0; padding: 0; }
+        #renderCanvas { width: 100%; height: 100%; touch-action: none; outline: none; }
         #ui-layer {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            font-family: sans-serif;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 15px;
-            border-radius: 8px;
-            pointer-events: none;
-            user-select: none;
+            position: absolute; top: 10px; left: 10px; color: white;
+            font-family: sans-serif; background: rgba(0, 0, 0, 0.6);
+            padding: 15px; border-radius: 8px; pointer-events: none; user-select: none;
         }
-        h3 { margin: 0 0 10px 0; font-size: 18px; }
-        p { margin: 5px 0; font-size: 14px; }
         kbd {
-            background-color: #eee;
-            border-radius: 3px;
-            border: 1px solid #b4b4b4;
-            box-shadow: 0 1px 1px rgba(0,0,0,.2), 0 2px 0 0 rgba(255,255,255,.7) inset;
-            color: #333;
-            display: inline-block;
-            font-size: .85em;
-            font-weight: 700;
-            line-height: 1;
-            padding: 2px 4px;
-            white-space: nowrap;
+            background-color: #eee; border-radius: 3px; border: 1px solid #b4b4b4;
+            box-shadow: 0 1px 1px rgba(0,0,0,.2); color: #333;
+            display: inline-block; font-size: .85em; font-weight: 700;
+            line-height: 1; padding: 2px 4px; white-space: nowrap;
         }
     </style>
     
-    <!-- 1. 核心库：Babylon.js -->
-    <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <!-- 2. 物理引擎库：Cannon.js (必须引入，否则 PhysicsImpostor 无法工作) -->
-    <script src="https://cdn.babylonjs.com/cannon.js"></script>
+    <!-- 1. 引入 Babylon.js (使用稳定版本 6.39.0 以避免最新版的潜在 breaking changes) -->
+    <script src="https://cdn.babylonjs.com/6.39.0/babylon.js"></script>
+    <!-- 2. 引入 Cannon.js (必须) -->
+    <script src="https://cdn.babylonjs.com/6.39.0/cannon.js"></script>
 </head>
 <body>
     <canvas id="renderCanvas"></canvas>
     <div id="ui-layer">
-        <h3>🛹 滑板物理演示</h3>
-        <p><kbd>W</kbd> / <kbd>↑</kbd> : 加速前进</p>
-        <p><kbd>S</kbd> / <kbd>↓</kbd> : 刹车/后退</p>
-        <p><kbd>A</kbd> / <kbd>D</kbd> : 左右转向</p>
-        <p><kbd>Space</kbd> : 跳跃 (Ollie)</p>
-        <p style="color: #aaa; font-size: 12px; margin-top: 10px;">如果看到白板，请按 F12 查看控制台错误</p>
+        <h3>🛹 滑板物理演示 (修复版)</h3>
+        <p><kbd>W</kbd> / <kbd>↑</kbd> : 加速</p>
+        <p><kbd>S</kbd> / <kbd>↓</kbd> : 刹车</p>
+        <p><kbd>A</kbd> / <kbd>D</kbd> : 转向</p>
+        <p><kbd>Space</kbd> : 跳跃</p>
     </div>
 
     <script>
         const canvas = document.getElementById("renderCanvas");
-        
-        // 初始化引擎
         const engine = new BABYLON.Engine(canvas, true);
+
+        // 全局输入状态
+        const inputState = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false,
+            jump: false
+        };
+
+        // 原生事件监听 (比 ActionManager 更稳定，避免 internal error)
+        window.addEventListener("keydown", (e) => {
+            switch(e.key.toLowerCase()) {
+                case "w": case "arrowup": inputState.forward = true; break;
+                case "s": case "arrowdown": inputState.backward = true; break;
+                case "a": case "arrowleft": inputState.left = true; break;
+                case "d": case "arrowright": inputState.right = true; break;
+                case " ": inputState.jump = true; break;
+            }
+        });
+
+        window.addEventListener("keyup", (e) => {
+            switch(e.key.toLowerCase()) {
+                case "w": case "arrowup": inputState.forward = false; break;
+                case "s": case "arrowdown": inputState.backward = false; break;
+                case "a": case "arrowleft": inputState.left = false; break;
+                case "d": case "arrowright": inputState.right = false; break;
+                case " ": inputState.jump = false; break;
+            }
+        });
 
         const createScene = function () {
             const scene = new BABYLON.Scene(engine);
-            
-            // 设置背景色，方便区分天空和地面
             scene.clearColor = new BABYLON.Color3(0.8, 0.9, 1.0);
 
-            // --- 1. 物理引擎初始化 ---
+            // --- 1. 物理引擎初始化 (关键修复点) ---
             try {
-                // 检查 Cannon 是否加载
+                // 检查 CANNON 是否存在
                 if (typeof CANNON === 'undefined') {
-                    throw new Error("Cannon.js library is not loaded. Please check your script tags.");
+                    throw new Error("Cannon.js not loaded");
                 }
                 
-                const gravityVector = new BABYLON.Vector3(0, -9.81, 0);
-                const physicsPlugin = new BABYLON.CannonJSPlugin();
-                scene.enablePhysics(gravityVector, physicsPlugin);
-                console.log("Physics Engine Initialized Successfully");
+                // 显式传入 CANNON 全局对象，防止插件内部查找失败
+                const physicsPlugin = new BABYLON.CannonJSPlugin(true, null, CANNON);
+                scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), physicsPlugin);
+                console.log("Physics initialized with CannonJS");
             } catch (e) {
-                console.error("Physics Init Error:", e);
-                alert("物理引擎加载失败！请检查网络连接或 Cannon.js 是否引入。");
+                console.error("Physics Init Failed:", e);
+                alert("物理引擎初始化失败: " + e.message);
                 return scene;
             }
 
-            // --- 2. 相机设置 ---
-            // 使用 ArcRotateCamera 以便初始能看清全貌，随后可以切换为 FollowCamera
+            // --- 2. 相机 ---
             const camera = new BABYLON.ArcRotateCamera("ArcCam", new BABYLON.Vector3(0, 10, 20), scene);
             camera.setTarget(new BABYLON.Vector3(0, 0, 0));
             camera.attachControl(canvas, true);
             camera.lowerRadiusLimit = 5;
             camera.upperRadiusLimit = 50;
 
-            // --- 3. 灯光设置 ---
+            // --- 3. 灯光 ---
             const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
             hemiLight.intensity = 0.7;
-            
             const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
             dirLight.position = new BABYLON.Vector3(20, 40, 20);
             dirLight.intensity = 0.8;
-            
-            // 阴影生成器
             const shadowGenerator = new BABYLON.ShadowGenerator(1024, dirLight);
             shadowGenerator.useBlurExponentialShadowMap = true;
-            shadowGenerator.blurKernel = 32;
 
-            // --- 4. 创建环境 ---
-            
-            // 地面
+            // --- 4. 地面 ---
             const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 100, height: 100 }, scene);
             const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
             groundMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
-            groundMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
             ground.material = groundMat;
             ground.receiveShadows = true;
             
-            // 地面物理体 (Mass 0 = 静态)
+            // 地面物理
             ground.physicsImpostor = new BABYLON.PhysicsImpostor(ground, BABYLON.PhysicsImpostor.BoxImpostor, { 
-                mass: 0, 
-                restitution: 0.1, 
-                friction: 0.5 
+                mass: 0, restitution: 0.1, friction: 0.5 
             }, scene);
 
-            // 一个斜坡障碍物
+            // --- 5. 斜坡 ---
             const ramp = BABYLON.MeshBuilder.CreateBox("ramp", { width: 4, height: 1, depth: 6 }, scene);
             ramp.position = new BABYLON.Vector3(0, 0.5, 15);
             ramp.rotation.x = -Math.PI / 8; 
@@ -138,42 +126,34 @@
             rampMat.diffuseColor = new BABYLON.Color3(0.8, 0.4, 0.2);
             ramp.material = rampMat;
             ramp.physicsImpostor = new BABYLON.PhysicsImpostor(ramp, BABYLON.PhysicsImpostor.BoxImpostor, { 
-                mass: 0, 
-                restitution: 0.2,
-                friction: 0.3
+                mass: 0, restitution: 0.2, friction: 0.3 
             }, scene);
             shadowGenerator.getShadowMap().renderList.push(ramp);
 
-            // --- 5. 创建滑板 (Skateboard) ---
-            
-            // 滑板根节点 (用于整体控制，但物理主要由 Deck 驱动)
+            // --- 6. 滑板 ---
             const skateboardRoot = new BABYLON.TransformNode("skateboardRoot", scene);
             
-            // A. 板面 (Deck)
+            // 板面
             const deck = BABYLON.MeshBuilder.CreateBox("deck", { width: 2.2, height: 0.15, depth: 7 }, scene);
             const deckMat = new BABYLON.StandardMaterial("deckMat", scene);
             deckMat.diffuseColor = new BABYLON.Color3(0.1, 0.4, 0.8);
             deck.material = deckMat;
-            deck.parent = skateboardRoot; // 渲染父子关系
+            deck.parent = skateboardRoot;
             shadowGenerator.getShadowMap().renderList.push(deck);
 
-            // 板面物理体 (Mass > 0 = 动态)
-            // 注意：在 CannonJS 中，我们直接操作 deck 的 impostor
+            // 板面物理
             deck.physicsImpostor = new BABYLON.PhysicsImpostor(deck, BABYLON.PhysicsImpostor.BoxImpostor, { 
-                mass: 5, 
-                restitution: 0.2,
-                friction: 0.5
+                mass: 5, restitution: 0.2, friction: 0.5 
             }, scene);
 
-            // B. 轮子 (Wheels)
+            // 轮子
             const wheelRadius = 0.35;
             const wheelThickness = 0.2;
-            // 轮子相对于板面的局部位置
             const wheelOffsets = [
-                new BABYLON.Vector3(-0.8, -0.2, 2.2),  // 左前
-                new BABYLON.Vector3(0.8, -0.2, 2.2),   // 右前
-                new BABYLON.Vector3(-0.8, -0.2, -2.2), // 左后
-                new BABYLON.Vector3(0.8, -0.2, -2.2)   // 右后
+                new BABYLON.Vector3(-0.8, -0.2, 2.2),
+                new BABYLON.Vector3(0.8, -0.2, 2.2),
+                new BABYLON.Vector3(-0.8, -0.2, -2.2),
+                new BABYLON.Vector3(0.8, -0.2, -2.2)
             ];
 
             const wheels = [];
@@ -181,104 +161,71 @@
             wheelMat.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9);
 
             wheelOffsets.forEach((offset, index) => {
-                // 创建轮子 Mesh
                 const wheel = BABYLON.MeshBuilder.CreateCylinder(`wheel_${index}`, { 
-                    diameter: wheelRadius * 2, 
-                    height: wheelThickness, 
-                    tessellation: 16 
+                    diameter: wheelRadius * 2, height: wheelThickness, tessellation: 16 
                 }, scene);
                 
-                // 调整圆柱体方向，使其像轮子一样滚动
                 wheel.rotation.z = Math.PI / 2; 
-                
                 wheel.material = wheelMat;
-                wheel.parent = skateboardRoot; // 渲染跟随板面
+                wheel.parent = skateboardRoot;
                 
-                // 计算轮子的初始世界坐标 (基于板面当前位置)
-                // 注意：物理引擎初始化时，Mesh 必须在正确的位置
+                // 设置初始位置
                 const initialWorldPos = deck.position.clone().add(offset);
                 wheel.position = initialWorldPos;
 
-                // 轮子物理体
+                // 轮子物理
                 wheel.physicsImpostor = new BABYLON.PhysicsImpostor(wheel, BABYLON.PhysicsImpostor.CylinderImpostor, {
-                    mass: 1, 
-                    restitution: 0.1,
-                    friction: 1.0 // 高摩擦提供抓地力
+                    mass: 1, restitution: 0.1, friction: 1.0
                 }, scene);
 
-                // 创建关节 (Hinge Joint)
-                // 将轮子连接到板面
+                // 关节
                 const joint = new BABYLON.HingeJoint({
-                    mainPivot: offset,             // 板面上的连接点 (局部坐标)
-                    connectedPivot: new BABYLON.Vector3(0, 0, 0), // 轮子中心
-                    mainAxis: new BABYLON.Vector3(0, 0, 1),      // 旋转轴
+                    mainPivot: offset,
+                    connectedPivot: new BABYLON.Vector3(0, 0, 0),
+                    mainAxis: new BABYLON.Vector3(0, 0, 1),
                     connectedAxis: new BABYLON.Vector3(0, 0, 1)
                 });
 
-                // 添加关节到物理系统
                 deck.physicsImpostor.addJoint(wheel.physicsImpostor, joint);
-                
                 wheels.push(wheel);
             });
 
-            // --- 6. 输入控制 ---
-            const inputMap = {};
-            scene.actionManager = new BABYLON.ActionManager(scene);
-            
-            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownObservable, (evt) => {
-                inputMap[evt.sourceEvent.key.toLowerCase()] = true;
-                if(evt.sourceEvent.key === " ") inputMap["space"] = true;
-            }));
-            
-            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpObservable, (evt) => {
-                inputMap[evt.sourceEvent.key.toLowerCase()] = false;
-                if(evt.sourceEvent.key === " ") inputMap["space"] = false;
-            }));
-
-            // --- 7. 渲染循环与逻辑更新 ---
+            // --- 7. 渲染循环 (使用原生输入状态) ---
             scene.registerBeforeRender(() => {
                 if (!deck.physicsImpostor || !deck.physicsImpostor.object) return;
 
                 const forceMultiplier = 15;
                 const turnSpeed = 0.2;
 
-                // 获取板当前的朝向
                 const forward = deck.getForwardRay().direction;
-                // 保持 Y 轴为 0，防止上下坡时推力方向奇怪
                 forward.y = 0; 
                 forward.normalize();
 
-                // W / Up: 加速
-                if (inputMap["w"] || inputMap["arrowup"]) {
-                    // 施加力在板面中心
+                // 加速
+                if (inputState.forward) {
                     deck.physicsImpostor.applyImpulse(forward.scale(forceMultiplier), deck.getAbsolutePosition());
                 }
                 
-                // S / Down: 刹车/后退
-                if (inputMap["s"] || inputMap["arrowdown"]) {
+                // 刹车
+                if (inputState.backward) {
                     deck.physicsImpostor.applyImpulse(forward.scale(-forceMultiplier * 0.5), deck.getAbsolutePosition());
                 }
 
-                // A / D: 转向 (通过设置角速度模拟扭转板身)
-                // 注意：直接设置角速度可能会覆盖物理碰撞的自然旋转，这里仅作简单演示
-                if (inputMap["a"] || inputMap["arrowleft"]) {
+                // 转向
+                if (inputState.left) {
                     const currentAngVel = deck.physicsImpostor.getAngularVelocity();
                     deck.physicsImpostor.setAngularVelocity(new BABYLON.Vector3(currentAngVel.x, turnSpeed, currentAngVel.z));
                 }
-                if (inputMap["d"] || inputMap["arrowright"]) {
+                if (inputState.right) {
                     const currentAngVel = deck.physicsImpostor.getAngularVelocity();
                     deck.physicsImpostor.setAngularVelocity(new BABYLON.Vector3(currentAngVel.x, -turnSpeed, currentAngVel.z));
                 }
 
-                // Space: 跳跃
-                if (inputMap["space"]) {
-                    // 简单的向上冲量
+                // 跳跃
+                if (inputState.jump) {
                     deck.physicsImpostor.applyImpulse(new BABYLON.Vector3(0, 80, 0), deck.getAbsolutePosition());
-                    inputMap["space"] = false; // 防止连续触发
+                    inputState.jump = false; // 防止连续跳
                 }
-                
-                // 相机平滑跟随 (可选：如果想让相机自动跟着跑，取消下面注释)
-                // camera.setTarget(deck.position);
             });
 
             return scene;
@@ -286,12 +233,10 @@
 
         const scene = createScene();
 
-        // 启动渲染循环
         engine.runRenderLoop(function () {
             scene.render();
         });
 
-        // 窗口大小调整适配
         window.addEventListener("resize", function () {
             engine.resize();
         });
