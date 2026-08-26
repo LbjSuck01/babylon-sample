@@ -20,10 +20,12 @@
         }
     </style>
     
-    <!-- 1. 引入 Babylon.js (使用稳定版本 6.39.0 以避免最新版的潜在 breaking changes) -->
-    <script src="https://cdn.babylonjs.com/6.39.0/babylon.js"></script>
-    <!-- 2. 引入 Cannon.js (必须) -->
-    <script src="https://cdn.babylonjs.com/6.39.0/cannon.js"></script>
+    <!-- 1. Babylon.js 核心库 (最新稳定版) -->
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+
+<!-- 2. Cannon.js 物理引擎 (Babylon 官方提供的兼容版本) -->
+<!-- 注意：Cannon.js 不是 Babylon 的一部分，但 Babylon 社区维护了一个常用的 CDN 镜像 -->
+<script src="https://cdn.babylonjs.com/cannon.js"></script>
 </head>
 <body>
     <canvas id="renderCanvas"></canvas>
