@@ -66,7 +66,7 @@
             const scene = new BABYLON.Scene(engine);
 
             // Camera
-	        var camera = new BABYLON.ArcRotateCamera("camera1", Math.PI / 2, Math.PI / 4, 6, new BABYLON.Vector3(0, 1, 0), scene);
+	        var camera = new BABYLON.ArcRotateCamera("camera1", Math.PI / 2, Math.PI / 3, 6, new BABYLON.Vector3(0, 1, 0), scene);
 	        camera.attachControl(canvas, true);
 
             // Lights
@@ -255,6 +255,37 @@
 					scene.onBeforeAnimationsObservable.add(onBeforeAnimation);
 				});
 				UiPanel.addControl(button);
+
+				var animParams = [
+		            idleParam,
+		            walkParam,
+		            runParam,
+					punchParam,
+					elbowParam
+		        ]
+		        animParams.forEach((param)=>{
+		            var header = new BABYLON.GUI.TextBlock();
+		            header.text = param.name + ":" + param.anim.weight.toFixed(2);
+		            header.height = "40px";
+		            header.color = "green";
+		            header.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+		            header.paddingTop = "10px";
+		            UiPanel.addControl(header); 
+		            var slider = new BABYLON.GUI.Slider();
+		            slider.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+		            slider.minimum = 0;
+		            slider.maximum = 1;
+		            slider.color = "green";
+		            slider.value = param.anim.weight;
+		            slider.height = "20px";
+		            slider.width = "205px";
+		            UiPanel.addControl(slider); 
+		            slider.onValueChangedObservable.add((v)=>{
+		                param.anim.weight = v;
+		                header.text = param.name + ":" + param.anim.weight.toFixed(2);
+		            }) 
+		            param.anim._slider = slider;
+		        });
 
                 // const gunmove = scene.getAnimationGroupByName("gunmove");
 
