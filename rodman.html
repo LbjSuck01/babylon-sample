@@ -124,6 +124,138 @@
 		        elbowAnim.weight = 0;
 				elbowAnim.play(true);
 
+				// UI
+				var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+				var UiPanel = new BABYLON.GUI.StackPanel();
+				UiPanel.width = "220px";
+				UiPanel.fontSize = "14px";
+				UiPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+				UiPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+				advancedTexture.addControl(UiPanel);
+
+				// Keep track of the current override animation
+				var currentParam = idleParam;
+
+				function onBeforeAnimation() {
+					// Increment the weight of the current override animation
+					if (currentParam) {
+						currentParam.weight = BABYLON.Scalar.Clamp(currentParam.weight + 0.01, 0, 1);
+						currentParam.anim.weight = currentParam.weight;
+					}
+		
+					// Decrement the weight of all override animations that aren't current
+					if (currentParam !== idleParam) {
+						idleParam.weight = BABYLON.Scalar.Clamp(idleParam.weight - 0.01, 0, 1);
+						idleParam.anim.weight = idleParam.weight;
+					}
+		
+					if (currentParam !== walkParam) {
+						walkParam.weight = BABYLON.Scalar.Clamp(walkParam.weight - 0.01, 0, 1);
+						walkParam.anim.weight = walkParam.weight;
+					}
+		
+					if (currentParam !== runParam) {
+						runParam.weight = BABYLON.Scalar.Clamp(runParam.weight - 0.01, 0, 1);
+						runParam.anim.weight = runParam.weight;
+					}
+		
+					// Remove the callback the current animation weight reaches 1 or
+					// when all override animations reach 0 when current is undefined
+					if ((currentParam && currentParam.weight === 1)
+						|| (idleParam.weight === 0 && walkParam.weight === 0 && runParam.weight === 0)) {
+						scene.onBeforeAnimationsObservable.removeCallback(onBeforeAnimation);
+					}
+				};
+
+				// Button for blending to bind pose
+				var button = BABYLON.GUI.Button.CreateSimpleButton("but0", "None");
+				button.paddingTop = "10px";
+				button.width = "100px";
+				button.height = "50px";
+				button.color = "white";
+				button.background = "green";
+				button.onPointerDownObservable.add(function () {
+					// Remove current animation
+					currentParam = undefined;
+		
+					// Restart animation observer
+					scene.onBeforeAnimationsObservable.removeCallback(onBeforeAnimation);
+					scene.onBeforeAnimationsObservable.add(onBeforeAnimation);
+				});
+				UiPanel.addControl(button);
+
+				// Button for blending to idle
+				var button = BABYLON.GUI.Button.CreateSimpleButton("but0", "Idle");
+				button.paddingTop = "10px";
+				button.width = "100px";
+				button.height = "50px";
+				button.color = "white";
+				button.background = "green";
+				button.onPointerDownObservable.add(function () {
+					// Do nothing if idle is already the current animation
+					if (currentParam === idleParam) {
+						return;
+					}
+		
+					// Restart animation observer with idle set to current
+					scene.onBeforeAnimationsObservable.removeCallback(onBeforeAnimation);	
+					currentParam = idleParam;
+					scene.onBeforeAnimationsObservable.add(onBeforeAnimation);
+				});
+				UiPanel.addControl(button);
+
+				// Button for blending to walk
+				button = BABYLON.GUI.Button.CreateSimpleButton("but0", "Walk");
+				button.paddingTop = "10px";
+				button.width = "100px";
+				button.height = "50px";
+				button.color = "white";
+				button.background = "green";
+				button.onPointerDownObservable.add(function () {
+					// Do nothing if walk is already the current animation
+					if (currentParam === walkParam) {
+						return;
+					}
+		
+					// Synchronize animations
+					if (currentParam) {
+						walkParam.anim.syncAllAnimationsWith(null);
+						currentParam.anim.syncAllAnimationsWith(walkParam.anim.animatables[0]);
+					}
+		
+					// Restart animation observer with walk set to current
+					scene.onBeforeAnimationsObservable.removeCallback(onBeforeAnimation);	
+					currentParam = walkParam;
+					scene.onBeforeAnimationsObservable.add(onBeforeAnimation);
+				});
+				UiPanel.addControl(button);
+
+				// Button for blending to run
+				button = BABYLON.GUI.Button.CreateSimpleButton("but0", "Run");
+				button.paddingTop = "10px";
+				button.width = "100px";
+				button.height = "50px";
+				button.color = "white";
+				button.background = "green";
+				button.onPointerDownObservable.add(function () {
+					// Do nothing if run is already the current animation
+					if (currentParam === runParam) {
+						return;
+					}
+		
+					// Synchronize animations
+					if (currentParam) {
+						runParam.anim.syncAllAnimationsWith(null);
+						currentParam.anim.syncAllAnimationsWith(runParam.anim.animatables[0]);
+					}
+		
+					// Restart animation observer with run set to current
+					scene.onBeforeAnimationsObservable.removeCallback(onBeforeAnimation);	
+					currentParam = runParam;
+					scene.onBeforeAnimationsObservable.add(onBeforeAnimation);
+				});
+				UiPanel.addControl(button);
+
                 // const gunmove = scene.getAnimationGroupByName("gunmove");
 
                 // scene.onBeforeRenderObservable.add(() => {
