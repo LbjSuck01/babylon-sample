@@ -62,34 +62,36 @@
         var sceneToRender = null;
         var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
         const createScene =  () => {
+            engine.displayLoadingUI();
             const scene = new BABYLON.Scene(engine);
 
-            /**** Set camera and light *****/
-            const camera = new BABYLON.ArcRotateCamera("camera", Math.PI /2, Math.PI / 2, 5, new BABYLON.Vector3(0, 1, 0));
-            camera.attachControl(canvas, true);
-            camera.lowerRadiusLimit = 2;
-            camera.upperRadiusLimit = 10;
-            camera.wheelDeltaPercentage = 0.01;
+            // Camera
+	        var camera = new BABYLON.ArcRotateCamera("camera1", Math.PI / 2, Math.PI / 4, 3, new BABYLON.Vector3(0, 1, 0), scene);
+	        camera.attachControl(canvas, true);
+
+            // Lights
+        	var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+        	light.intensity = 0.6;
+        	light.specular = BABYLON.Color3.Black();
+
+            BABYLON.SceneLoader.ImportMesh("", "./meshes/", "rodmanAnim.glb", scene, function (newMeshes, particleSystems, skeletons, animationGroups) {
+
+                var helper = scene.createDefaultEnvironment({
+        			enableGroundShadow: true
+        		});
+        		helper.setMainColor(BABYLON.Color3.Gray());
+        		helper.ground.position.y += 0.01;
+
+                // const gunmove = scene.getAnimationGroupByName("gunmove");
+
+                // scene.onBeforeRenderObservable.add(() => {
+                //     if(gunmove){
+                //     gunmove.start(true, 1.0, gunmove.from, gunmove.to, true);
+                // } 
+                // });
 
 
-            var helper = scene.createDefaultEnvironment({
-                enableGroundShadow: true
-            });
-            helper.setMainColor(BABYLON.Color3.Gray());
-            helper.ground.position.y += 0.01;
-
-
-            const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
-
-            BABYLON.SceneLoader.ImportMesh("", "./meshes/", "Ultraman_with_gun.glb", scene, function (newMeshes, particleSystems, skeletons, animationGroups) {
-
-                const gunmove = scene.getAnimationGroupByName("gunmove");
-
-                scene.onBeforeRenderObservable.add(() => {
-                    if(gunmove){
-                    gunmove.start(true, 1.0, gunmove.from, gunmove.to, true);
-                } 
-                });
+                engine.hideLoadingUI();
 
             });
     
