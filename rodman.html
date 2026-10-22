@@ -66,13 +66,16 @@
             const scene = new BABYLON.Scene(engine);
 
             // Camera
-	        var camera = new BABYLON.ArcRotateCamera("camera1", Math.PI / 2, Math.PI / 4, 3, new BABYLON.Vector3(0, 1, 0), scene);
+	        var camera = new BABYLON.ArcRotateCamera("camera1", Math.PI / 2, Math.PI / 4, 6, new BABYLON.Vector3(0, 1, 0), scene);
 	        camera.attachControl(canvas, true);
 
             // Lights
         	var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
         	light.intensity = 0.6;
         	light.specular = BABYLON.Color3.Black();
+
+			var light2 = new BABYLON.DirectionalLight("dir01", new BABYLON.Vector3(0, -0.5, -1.0), scene);
+			light2.position = new BABYLON.Vector3(0, 5, 5);
 
             BABYLON.SceneLoader.ImportMesh("", "./meshes/", "rodmanAnim.glb", scene, function (newMeshes, particleSystems, skeletons, animationGroups) {
 
@@ -81,6 +84,8 @@
         		});
         		helper.setMainColor(BABYLON.Color3.Gray());
         		helper.ground.position.y += 0.01;
+
+				console.log('newMeshes', newMeshes)
 
                 // const gunmove = scene.getAnimationGroupByName("gunmove");
 
