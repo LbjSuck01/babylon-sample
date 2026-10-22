@@ -79,13 +79,45 @@
 
             BABYLON.SceneLoader.ImportMesh("", "./meshes/", "rodmanAnim.glb", scene, function (newMeshes, particleSystems, skeletons, animationGroups) {
 
+				shadowGenerator.addShadowCaster(scene.meshes[0], true);
+				for (var index = 0; index < newMeshes.length; index++) {
+					newMeshes[index].receiveShadows = false;
+				}
+
                 var helper = scene.createDefaultEnvironment({
         			enableGroundShadow: true
         		});
         		helper.setMainColor(BABYLON.Color3.Gray());
         		helper.ground.position.y += 0.01;
 
-				console.log('newMeshes', newMeshes)
+				console.log('scene.meshes[0]', scene.meshes[0]);
+				console.log('newMeshes', newMeshes);
+
+				// Initialize override animations, turn on idle by default
+				var idleAnim = scene.animationGroups.find(a => a.name === 'Idle');
+				var idleParam = { name: "Idle", anim: idleAnim, weight: 1 };
+		        idleAnim.weight = 1;
+				idleAnim.play(true);
+
+				var walkAnim = scene.animationGroups.find(a => a.name === 'Walking');
+				var walkParam = { name: "Walk", anim: walkAnim, weight: 0 };
+		        walkAnim.weight = 0;
+				walkAnim.play(true);
+
+				var runAnim = scene.animationGroups.find(a => a.name === 'Running');
+				var runParam = { name: "Run", anim: runAnim, weight: 0 };
+		        runAnim.weight = 0;
+				runAnim.play(true);
+
+				var punchAnim = scene.animationGroups.find(a => a.name === 'Punching');
+				var punchParam = { name: "Punch", anim: punchAnim, weight: 0 };
+		        punchAnim.weight = 0;
+				punchAnim.play(true);
+
+				var elbowAnim = scene.animationGroups.find(a => a.name === 'Elbow_punching');
+				var runParam = { name: "Elbow", anim: elbowAnim, weight: 0 };
+		        elbowAnim.weight = 0;
+				elbowAnim.play(true);
 
                 // const gunmove = scene.getAnimationGroupByName("gunmove");
 
